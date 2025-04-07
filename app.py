@@ -1,34 +1,73 @@
 
 import streamlit as st
 import time
+from datetime import datetime, timedelta
+import pandas as pd
 
 st.set_page_config(page_title="Latihan Soal Tracker", layout="centered")
 
-st.title("🧠 Latihan Soal & Progres Belajar")
+st.title("📘 Latihan Soal Tracker")
 
-# Timer sederhana
+# Sidebar timer
+st.sidebar.header("⏱️ Timer Latihan")
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
+    st.session_state.running = False
 
-st.subheader("⏱️ Timer Latihan")
-if st.button("Mulai Timer"):
-    st.session_state.start_time = time.time()
-if st.session_state.start_time:
-    elapsed = int(time.time() - st.session_state.start_time)
-    st.write(f"Sudah latihan selama: **{elapsed // 60} menit {elapsed % 60} detik**")
+def start_timer():
+    st.session_state.start_time = datetime.now()
+    st.session_state.running = True
 
-# Log aktivitas
-st.subheader("📝 Log Aktivitas")
-with st.form("log_form"):
-    aktivitas = st.text_input("Aktivitas (misal: Latihan soal kelarutan Ksp-S)")
-    submitted = st.form_submit_button("Catat")
-    if submitted and aktivitas:
-        if "logs" not in st.session_state:
-            st.session_state.logs = []
-        st.session_state.logs.append(aktivitas)
+def stop_timer():
+    st.session_state.running = False
 
-# Tampilkan log
-if "logs" in st.session_state and st.session_state.logs:
-    st.subheader("📚 Riwayat Aktivitas")
-    for i, log in enumerate(reversed(st.session_state.logs), 1):
-        st.markdown(f"{i}. {log}")
+if st.sidebar.button("Mulai"):
+    start_timer()
+
+if st.sidebar.button("Berhenti"):
+    stop_timer()
+
+if st.session_state.running and st.session_state.start_time:
+    elapsed = datetime.now() - st.session_state.start_time
+    st.sidebar.success(f"Waktu: {elapsed.seconds // 60} menit {elapsed.seconds % 60} detik")
+    time.sleep(1)
+    st.rerun()
+
+# Log aktivitas belajar
+st.subheader("📒 Log Aktivitas")
+log = st.text_input("Tulis aktivitasmu (misal: latihan soal kelarutan, baca teori ikatan kimia)", key="log_input")
+submit = st.button("Simpan Log")
+
+if "logs" not in st.session_state:
+    st.session_state.logs = []
+
+if submit and log:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.session_state.logs.append({"waktu": timestamp, "aktivitas": log})
+
+if st.session_state.logs:
+    df_logs = pd.DataFrame(st.session_state.logs)
+    st.write("### Riwayat Log")
+    st.dataframe(df_logs)
+
+# Progress belajar (dummy berdasarkan log)
+st.subheader("📊 Progress Belajar")
+progress_data = {}
+for entry in st.session_state.logs:
+    aktivitas = entry["aktivitas"].lower()
+    if "kelarutan" in aktivitas:
+        topic = "Kelarutan"
+    elif "ikatan kimia" in aktivitas:
+        topic = "Ikatan Kimia"
+    elif "asam basa" in aktivitas:
+        topic = "Asam Basa"
+    else:
+        topic = "Topik Lain"
+    progress_data[topic] = progress_data.get(topic, 0) + 1
+
+if progress_data:
+    progress_df = pd.DataFrame({
+        "Topik": list(progress_data.keys()),
+        "Jumlah Aktivitas": list(progress_data.values())
+    })
+    st.bar_chart(progress_df.set_index("Topik"))
